@@ -92,6 +92,10 @@ class GoString():
 
 
 class Board():
+    """
+    Holds a game board in a particular state
+    """
+
     def __init__(self, num_rows, num_cols):
         self.num_rows = num_rows
         self.num_cols = num_cols
@@ -105,7 +109,7 @@ class Board():
         adjacent_opposite_color = []
         liberties = []
         for neighbour in point.neighbours():
-            # firs examine direct neighbours of the point
+            # first examine direct neighbours of the point
             if not self.is_on_grid(neighbour):
                 continue
             neighbour_string = self._grid.get(neighbour)
@@ -166,7 +170,7 @@ class Board():
             return None
         return string
 
-    def remove_string(self, string):
+    def _remove_string(self, string):
         """
         Removes a string of stones
         """
@@ -179,3 +183,95 @@ class Board():
                 if neighbour_string is not string:
                     neighbour_string.add_liberty(point)
             self._grid[point] = None
+
+
+class GameState():
+    """
+    Captures the current state of the game
+    Know about the board positions, next player, prev state and last move
+    """
+    def __init__(self, board, next_player, previous, move):
+        self.board = board
+        self.next_player = next_player
+        self.previous_state = previous
+        self.last_move = move
+
+    def apply_move(self, move):
+        """
+        Applies a move to the current game state
+        """
+        if move.is_play:
+            next_board = copy.deepcopy(self.board)
+            next_board.place_stone(self.next_player, move.point)
+        else:
+            next_board = self.board
+        return GameState(next_board, self.next_player.other, self, move)
+
+    @classmethod
+    def new_game(cls, board_size):
+        """
+        Creates a new blank GameState
+        """
+        if isinstance(board_size, int):
+            board_size = (board_size, board_size)
+        board = Board(*board_size)
+        return GameState(board, Player.black, None, None)
+
+    def is_over(self):
+        """
+        Is the game over
+        - Player resigns
+        - Both last moves were passes
+        """
+        if self.last_move is None:
+            return False
+        if self.last_move.is_resign:
+            return True
+        second_last_move = self.previous_state.last_move
+        if second_last_move is None:
+            return False
+        return self.last_move.is_pass and second_last_move.is_pass
+
+    def is_move_self_capture(self, player, move):
+        """
+        Prevents a user making a move that would capture themselves
+        """
+        if not move.is_play:
+            return False
+        next_board = copy.deepcopy(self.board)
+        next_board.place_stone(player, move.point)
+        new_string = next_board.get_go_string(move.point)
+        return new_string.num_liberties == 0
+
+    @property
+    def situation(self):
+        return (self.next_player, self.board)
+
+    def does_move_violate_ko(self, player, move):
+        """
+        Prevents ko
+        - returning the board to the exact previous position
+        - A player may not play a stone that would re-create a previous
+        game state (situational superko)
+        """
+        if not move.is_play:
+            return False
+        next_board = copy.deepcopy(self.board)
+        next_board.place_stone(player, move.point)
+        next_situation = (player.other, next_board)
+        past_state = self.previous_state
+        while past_state is not None:
+            if past_state.situation == next_situation:
+                return True
+            past_state = past_state.previous_state
+        return False
+
+    def is_valid_move(self, move):
+        if self.is_over():
+            return False
+        if move.is_pass or move.is_resign:
+            return True
+        return (
+            self.board.get(move.point) is None and
+            not self.is_move_self_capture(self.next_player, move) and
+            not self.does_move_violate_ko(self.next_player, move))
