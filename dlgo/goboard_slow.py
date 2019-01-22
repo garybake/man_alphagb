@@ -11,7 +11,7 @@ class Move():
     Move.resign()
     """
     def __init__(self, point=None, is_pass=False, is_resign=False):
-        assert (point is None) ^ is_pass ^ is_resign
+        assert (point is not None) ^ is_pass ^ is_resign
         self.point = point
         self.is_play = (self.point is not None)
         self.is_pass = is_pass
@@ -43,13 +43,13 @@ class GoString():
     """
     Used to track connected groups of stones and their liberties
     A GoString string is the set of connected stones
-    A liberty is the number of empty points in its direct neighbourhood
+    A liberty is the number of empty points in its direct neighborhood
     This tracks the liberties of the GoStrings
     """
     def __init__(self, color, stones, liberties):
         self.color = color
         self.stones = set(stones)
-        self.liberties = liberties
+        self.liberties = set(liberties)
 
     def remove_liberty(self, point):
         """
@@ -99,7 +99,7 @@ class Board():
     def __init__(self, num_rows, num_cols):
         self.num_rows = num_rows
         self.num_cols = num_cols
-        self._grid = ()
+        self._grid = {}
 
     def place_stone(self, player, point):
         assert self.is_on_grid(point)  # point is within bounds
@@ -108,23 +108,23 @@ class Board():
         adjacent_same_color = []
         adjacent_opposite_color = []
         liberties = []
-        for neighbour in point.neighbours():
-            # first examine direct neighbours of the point
-            if not self.is_on_grid(neighbour):
+        for neighbor in point.neighbors():
+            # first examine direct neighbors of the point
+            if not self.is_on_grid(neighbor):
                 continue
-            neighbour_string = self._grid.get(neighbour)
+            neighbor_string = self._grid.get(neighbor)
 
-            if neighbour_string is None:
-                # if the neighbour is empty add it to the liberties
-                liberties.append(neighbour)
-            elif neighbour_string.color == player:
-                # if the neighbour is ours add it to our pot
-                if neighbour_string not in adjacent_same_color:
-                    adjacent_same_color.append(neighbour_string)
+            if neighbor_string is None:
+                # if the neighbor is empty add it to the liberties
+                liberties.append(neighbor)
+            elif neighbor_string.color == player:
+                # if the neighbor is ours add it to our pot
+                if neighbor_string not in adjacent_same_color:
+                    adjacent_same_color.append(neighbor_string)
             else:
-                # if the neighbour is not ours add it to the other pot
-                if neighbour_string not in adjacent_opposite_color:
-                    adjacent_opposite_color.append(neighbour_string)
+                # if the neighbor is not ours add it to the other pot
+                if neighbor_string not in adjacent_opposite_color:
+                    adjacent_opposite_color.append(neighbor_string)
         new_string = GoString(player, [point], liberties)
 
         # Merge any adjacent strings of the same color
@@ -175,13 +175,13 @@ class Board():
         Removes a string of stones
         """
         for point in string.stones:
-            for neighbour in point.neighbours():
+            for neighbor in point.neighbors():
                 # Removing a string can create liberties for other strings
-                neighbour_string = self._grid.get(neighbour)
-                if neighbour_string is None:
+                neighbor_string = self._grid.get(neighbor)
+                if neighbor_string is None:
                     continue
-                if neighbour_string is not string:
-                    neighbour_string.add_liberty(point)
+                if neighbor_string is not string:
+                    neighbor_string.add_liberty(point)
             self._grid[point] = None
 
 
