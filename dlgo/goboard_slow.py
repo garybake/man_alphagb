@@ -1,5 +1,7 @@
 import copy
+
 from dlgo.gotypes import Player
+from dlgo import zobrist
 
 
 class Move():
@@ -48,20 +50,31 @@ class GoString():
     """
     def __init__(self, color, stones, liberties):
         self.color = color
-        self.stones = set(stones)
-        self.liberties = set(liberties)
+        self.stones = frozenset(stones)
+        self.liberties = frozenset(liberties)
 
-    def remove_liberty(self, point):
-        """
-        Remove a liberty from the set
-        """
-        self.liberties.remove(point)
+    # def remove_liberty(self, point):
+    #     """
+    #     Remove a liberty from the set
+    #     """
+    #     self.liberties.remove(point)
 
-    def add_liberty(self, point):
+    def without_liberty(self, point):
+        new_liberties = self.liberties - set([point])
+        return GoString(self.color, self.stones, new_liberties)
+
+    # def add_liberty(self, point):
+    #     """
+    #     Add a liberty to the set
+    #     """
+    #     self.liberties.add(point)
+
+    def with_liberty(self, point):
         """
         Add a liberty to the set
         """
-        self.liberties.add(point)
+        new_liberties = self.liberties | set(point)
+        return GoString(self.color, self.stones, new_liberties)
 
     def merged_with(self, go_string):
         """
@@ -100,6 +113,7 @@ class Board():
         self.num_rows = num_rows
         self.num_cols = num_cols
         self._grid = {}
+        self._hash = zobrist.EMPTY_BOARD
 
     def place_stone(self, player, point):
         assert self.is_on_grid(point)  # point is within bounds
